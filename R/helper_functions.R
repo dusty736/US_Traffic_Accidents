@@ -132,10 +132,98 @@ consolidate_weather <- function(weather) {
   )
 }
 
+#' Create accident video
+#'
+#' @param df_sf - SF dataframe with accident_date, time_hour columns
+#' @param start_date - Character YYYY-MM-DD date
+#' @param end_date  - Character YYYY-MM-DD date
+#' @param fps - Numeric for frames per second
+#' @param res - Character of hourly or daily
+#' @param bbox - Bounding region for map
+#' @param spatial_list - List with map objects like states/counties
+#' @param output_location - Character of file output location
+#'
+#' @return
+#' @export
+#'
+#' @examples
+accident_video_gen <- function(df_sf, start_date, end_date, fps, res, geo_res,
+                               bbox, spatial_list, output_location) {
+  
+  # Filter for date
+  df_sf <- df_sf %>% 
+    filter(accident_date >= as.Date(start_date) & accident_date <= as.Date(end_date))
+  
+  # Get resolution
+  if (res == 'hourly') {
+    nframes <- length(unique(df_sf$time_hour)) # number of unique hours
+    transition <- 'time_hour'
+    label_text <- "time_hour"
+  } else if (res == 'daily') {
+    nframes <- length(unique(df_sf$accident_date)) # number of unique dates
+    transition <- 'accident_date'
+    label_text <- "accident_date"
+  }
+  
+  if (geo_res == 'state') {
+    t1_region <- spatial_list$states_of_interest
+    t2_region <- spatial_list$counties_of_interest
+    supp_roads <- spatial_list$roads_s1200
+  } else if (geo_res == 'city') {
+    t1_region <- spatial_list$king_county
+    t2_region <- spatial_list$king_county_adjacent
+    supp_roads <- spatial_list$roads_s1400
+  }
+  
+  water <- sf::st_crop(sf::st_transform(spatial_objects$water_counties, 4326), 
+                       bbox, 
+                       10)
+  
+  # Create video
+  accident_gif <- df_sf %>% 
+    # Create map
+    ggplot() +
+    # Add Basemap
+    geom_sf(data = t1_region, fill = 'white', linetype = "dotted", linewidth=0.2) +
+    geom_sf(data = t2_region, fill = NA, linewidth=1) +
+    # Add Roads
+    geom_sf(data = spatial_list$roads_s1100, color = "black", linewidth=0.25) +
+    geom_sf(data = spatial_list$roads_s1200, color = "black", linewidth=0.1) +
+    geom_sf(data = supp_roads, color = "black", linewidth=0.05) +
+    geom_sf(data = water, fill = 'blue', linewidth=0.0001, alpha=0.1) +
+    # Add accidents
+    geom_sf(size = 3, shape = 23, color = 'red', fill = 'orange', stroke = 1) +
+    # Add dynamic label for time or date
+    geom_text(aes(x = Inf, y = Inf, label = !!sym(label_text)), 
+              hjust = 1.1, vjust = 1.1, color = 'black', size = 6) +
+    # Transition
+    gganimate::transition_time(!!sym(transition)) +
+    gganimate::shadow_mark(past = TRUE, future = FALSE, alpha = 0.75, size = 1) +
+    gganimate::ease_aes('linear') +
+    # Limits
+    xlim(bbox[1], bbox[3]) +
+    ylim(bbox[2], bbox[4]) +
+    theme(panel.border = element_rect(colour = "black", fill=NA),
+          legend.background = element_blank(),
+          legend.box.background = element_rect(colour = "black"))
+  
+  animated_video <- gganimate::animate(accident_gif, 
+                                       renderer = gganimate::av_renderer(), 
+                                       fps = fps, 
+                                       nframes = nframes,
+                                       width = 1920,  # width in pixels
+                                       height = 1080) # height in pixels
+  
+  gganimate::anim_save(output_location, animation = animated_video)
+}
 
 
-
-
+bbox_clip <- function(polygon_sf, bbox_sf, buffer) {
+  
+  buffered_bbox <- sf::st_buffer(sf::st_as_sfc(bbox), buffer)
+  
+  st_crop(polygon_sf, buffered_bbox)
+}
 
 
 

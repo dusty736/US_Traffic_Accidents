@@ -122,13 +122,36 @@ intersecting_logical <- lengths(intersecting_indices) > 0
 # Extract the intersecting counties
 king_adjacent_counties <- counties_of_interest[intersecting_logical, ]
 
-water_counties <- sf::st_union(rbind(tigris::area_water("WA", "Kittitas"),
-                                     tigris::area_water("WA", "Snohomish"),
-                                     tigris::area_water("WA", "Yakima"),
-                                     tigris::area_water("WA", "Chelan"),
-                                     tigris::area_water("WA", "King"),
-                                     tigris::area_water("WA", "Kitsap"),
-                                     tigris::area_water("WA", "Pierce")))
+# Retrieve all counties in Washington and Oregon
+wa_counties <- counties(state = "WA", cb = TRUE)
+or_counties <- counties(state = "OR", cb = TRUE)
+
+# Filter northern Oregon counties if needed (e.g., latitude threshold or specific counties)
+# For simplicity, assuming all Oregon counties here
+northern_or_counties <- or_counties
+
+# Function to get water bodies for a given county
+get_water_bodies <- function(state, county) {
+  tigris::area_water(state = state, county = county, year = 2022)
+}
+
+# Retrieve water bodies for all Washington counties
+wa_water_bodies <- do.call(rbind, lapply(wa_counties$NAME, function(county) {
+  get_water_bodies("WA", county)
+}))
+
+# Retrieve water bodies for all northern Oregon counties
+or_water_bodies <- do.call(rbind, lapply(northern_or_counties$NAME, function(county) {
+  get_water_bodies("OR", county)
+}))
+
+# Combine water bodies from Washington and Oregon
+water_counties <- sf::st_union(rbind(wa_water_bodies, or_water_bodies))
+
+bbox_polygon <- st_as_sfc(st_bbox(spatial_objects$wa_bbox))
+filtered_water_bodies <- st_intersection(combined_water_bodies, bbox_polygon)
+
+sf::write_sf(filtered_water_bodies, "data/mapping/water.shp")
 
 ################################################################################
 # Feature Engineering

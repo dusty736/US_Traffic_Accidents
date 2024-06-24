@@ -23,6 +23,8 @@ traffic_data <- data.table::fread("data/full_traffic_data.csv") %>%
 daily_traffic <- data.table::fread("data/daily_traffic_data.csv")
 monthly_traffic <- data.table::fread("data/monthly_traffic_data.csv")
 annual_traffic <- data.table::fread("data/annual_traffic_data.csv")
+spatial_objects <- readRDS("data/mapping/spatial_objects.rds")
+water_sf <- sf::read_sf("data/mapping/water.shp")
 
 # Create rain dataset
 rain_df <- traffic_data %>% 
@@ -285,7 +287,82 @@ daily_plots <- cowplot::plot_grid(daily_total_counts_plot,
 
 ggsave("plots/daily_accidents.png", plot = daily_plots, width = 10, height = 10, units = "in", dpi = 300)
 
+################################################################################
+# Question 4
+# How many traffic accidents happen during rush hour?
+################################################################################
 
+################################################################################
+# Question 5
+# How many traffic accidents happen during night?
+################################################################################
+
+################################################################################
+# Question 6
+# How long is the average accident?
+################################################################################
+
+################################################################################
+# Question 7
+# How long is the average accident?
+################################################################################
+
+################################################################################
+# Question 8
+# How much distance is blocked by the average accident by severity?
+################################################################################
+
+################################################################################
+# Question 9
+# Where are traffic accidents happening over time?
+################################################################################
+
+traffic_hourly <- traffic_data %>% 
+  mutate(time_hour = lubridate::floor_date(lubridate::ymd_hms(paste0(traffic_data$accident_date, 
+                                                                     ' ',
+                                                                     traffic_data$accident_time)),
+                                           'hour')) %>% 
+  dplyr::select(id, accident_date, time_hour, longitude, latitude) %>% 
+  sf::st_as_sf(., coords=c('longitude', 'latitude'), crs=4326)
+
+# Example call to the function
+accident_video_gen(df_sf = traffic_hourly, 
+                   start_date = "2021-12-25", 
+                   end_date = "2021-12-26", 
+                   fps = 4, 
+                   res = 'hourly', geo_res = 'city',
+                   bbox = spatial_objects$seattle_bbox, 
+                   spatial_list = spatial_objects, 
+                   output_location = "plots/hourly_accident_map.mp4")
+
+accident_video_gen(df_sf = traffic_hourly, 
+                   start_date = "2021-01-01", 
+                   end_date = "2021-12-31", 
+                   fps = 4, 
+                   res = 'daily', geo_res = 'city',
+                   bbox = spatial_objects$seattle_bbox, 
+                   spatial_list = spatial_objects, 
+                   output_location = "plots/nyd_accident_map.mp4")
+
+traffic_data %>% 
+  # Create map
+  ggplot() +
+  # Add Basemap
+  geom_sf(data = spatial_objects$king_county, fill = 'white', linetype = "dotted", linewidth=0.2) +
+  geom_sf(data = spatial_objects$king_county_adjacent, fill = NA, linewidth=1) +
+  geom_sf(data = test, fill = 'blue', linewidth=0.0001, alpha=0.1) +
+  # Add Roads
+  geom_sf(data = spatial_objects$roads_s1100, color = "black", linewidth=0.25) +
+  geom_sf(data = spatial_objects$roads_s1200, color = "black", linewidth=0.1) +
+  geom_sf(data = roads_s1400, color = "black", linewidth=0.05) +
+  # Add accidents
+  #geom_sf(size = 3, shape = 23, color = 'red', fill = 'orange', stroke = 1) +
+  # Limits
+  xlim(spatial_objects$seattle_bbox[1], spatial_objects$seattle_bbox[3]) +
+  ylim(spatial_objects$seattle_bbox[2], spatial_objects$seattle_bbox[4]) +
+  theme(panel.border = element_rect(colour = "black", fill=NA),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
 
 
 
