@@ -34,8 +34,8 @@ columns_of_interest <- c('id', 'severity', 'start_time',
                          'nautical_twilight', 'astronomical_twilight')
 
 traffic_data <- traffic_data %>% 
-  dplyr::select(all_of(columns_of_interest))
-
+  dplyr::select(all_of(columns_of_interest)) %>% 
+  filter(county == 'King')
 
 ################################################################################
 # Create Map Objects
@@ -72,6 +72,8 @@ roads_s1100 <- roads %>%
   filter(MTFCC == 'S1100')
 roads_s1200 <- roads %>% 
   filter(MTFCC == 'S1200')
+roads_s1400 <- roads %>% 
+  filter(MTFCC == 'S1400')
 
 # BBOX
 bbox <- sf::st_bbox(states_of_interest %>% filter(STUSPS %in% c('WA')))
@@ -139,6 +141,7 @@ spatial_object_output <- list(king_county = king_county,
                               seattle_bbox = seattle_bbox,
                               roads_s1100 = roads_s1100,
                               roads_s1200 = roads_s1200,
+                              roads_s1400 = roads_s1400,
                               roads = roads,
                               states_of_interest = states_of_interest,
                               counties_of_interest = counties_of_interest)

@@ -149,7 +149,7 @@ annual_hourly_rate_plot <- annual_counts %>%
   ggplot() +
   geom_point(aes(x = accident_year, y = accidents_per_hour)) +
   geom_line(aes(x = accident_year, y = accidents_per_hour)) +
-  lims(y = c(0, 2.5)) +
+  lims(y = c(0, 1.5)) +
   theme_minimal() +
   theme(aspect.ratio = 1,
         axis.text.x=element_text(angle = 45, vjust = 0.5)) +
@@ -162,7 +162,7 @@ annual_daily_rate_plot <- annual_counts %>%
   ggplot() +
   geom_point(aes(x = accident_year, y = accidents_per_day)) +
   geom_line(aes(x = accident_year, y = accidents_per_day)) +
-  lims(y = c(0, 60)) +
+  lims(y = c(0, 40)) +
   theme_minimal() +
   theme(aspect.ratio = 1,
         axis.text.x=element_text(angle = 45, vjust = 0.5)) +
@@ -175,7 +175,7 @@ annual_monthly_rate_plot <- annual_counts %>%
   ggplot() +
   geom_point(aes(x = accident_year, y = accidents_per_month)) +
   geom_line(aes(x = accident_year, y = accidents_per_month)) +
-  lims(y = c(0, 2000)) +
+  lims(y = c(0, 1100)) +
   theme_minimal() +
   theme(aspect.ratio = 1,
         axis.text.x=element_text(angle = 45, vjust = 0.5)) +
@@ -202,7 +202,7 @@ monthly_total_counts_plot <- monthly_counts %>%
   ggplot() +
   geom_point(aes(x = year_month, y = n_accidents)) +
   geom_line(aes(x = year_month, y = n_accidents, group = 1)) +
-  lims(y = c(0, 3000)) +
+  lims(y = c(0, 1500)) +
   scale_x_date(date_breaks = "6 months", date_labels = "%Y-%m") +
   theme_minimal() +
   theme(aspect.ratio = 1,
@@ -216,7 +216,7 @@ monthly_hourly_rate_plot <- monthly_counts %>%
   ggplot() +
   geom_point(aes(x = year_month, y = accidents_per_hour)) +
   geom_line(aes(x = year_month, y = accidents_per_hour, group = 1)) +
-  lims(y = c(0, 4)) +
+  lims(y = c(0, 2.1)) +
   scale_x_date(date_breaks = "6 months", date_labels = "%Y-%m") +
   theme_minimal() +
   theme(aspect.ratio = 1,
@@ -230,7 +230,7 @@ monthly_daily_rate_plot <- monthly_counts %>%
   ggplot() +
   geom_point(aes(x = year_month, y = accidents_per_day)) +
   geom_line(aes(x = year_month, y = accidents_per_day, , group = 1)) +
-  lims(y = c(0, 100)) +
+  lims(y = c(0, 50)) +
   scale_x_date(date_breaks = "6 months", date_labels = "%Y-%m") +
   theme_minimal() +
   theme(aspect.ratio = 1,
@@ -292,15 +292,97 @@ ggsave("plots/daily_accidents.png", plot = daily_plots, width = 10, height = 10,
 # How many traffic accidents happen during rush hour?
 ################################################################################
 
+# Rush hour is defined as 6-9am, 4-6pm
+
+traffic_rush_hour <- traffic_data %>% 
+  filter(lubridate::year(accident_date) %in% 2017:2022) %>% 
+  mutate(rush_hour = ifelse(accident_hour %in% c(6:9, 16:18), 
+                            'rush_hour',
+                            'not_rush_hour')) %>% 
+  group_by(rush_hour) %>% 
+  summarize(n_accidents = n()) %>% 
+  mutate(accidents_per_hour = ifelse(rush_hour == 'rush_hour',
+                                     n_accidents / 6,
+                                     n_accidents / 18))
+
+traffic_by_hour <- traffic_data %>% 
+  group_by(accident_hour) %>% 
+  summarize(n_accidents = n()) %>% 
+  mutate(rush_hour = ifelse(accident_hour %in% c(6:9, 16:18), 
+                            'rush_hour',
+                            'not_rush_hour'))
+
+traff_by_hour_plot <- traffic_by_hour %>% 
+  ggplot() +
+    geom_point(aes(x = accident_hour, y = n_accidents, color = rush_hour)) +
+    geom_smooth(aes(x = accident_hour, y = n_accidents), method = "loess", span=0.5) +
+    labs(x = "Hour of Day",
+         y = "Number of Accidents",
+         color = "Rush Hour Status",
+         title = "Accidents Per Hour")
+
+ggsave("plots/hourly_accidents.png", plot = traff_by_hour_plot, width = 10, height = 10, units = "in", dpi = 300)
+
+traffic_by_hour_year <- traffic_data %>% 
+  filter(lubridate::year(accident_date) %in% 2017:2022) %>% 
+  group_by(accident_hour, accident_year) %>% 
+  summarize(n_accidents = n()) %>% 
+  mutate(rush_hour = ifelse(accident_hour %in% c(6:9, 16:18), 
+                            'rush_hour',
+                            'not_rush_hour'))
+
+hourly_traffic_by_year <- traffic_by_hour_year %>% 
+  ggplot() +
+  geom_point(aes(x = accident_hour, y = n_accidents, color = rush_hour)) +
+  geom_smooth(aes(x = accident_hour, y = n_accidents), method = "loess", span=0.5) +
+  labs(x = "Hour of Day",
+       y = "Number of Accidents",
+       color = "Rush Hour Status",
+       title = "Accidents Per Hour") +
+  facet_grid(~accident_year)
+
+ggsave("plots/hourly_accidents_by_year.png", plot = hourly_traffic_by_year, width = 10, height = 10, units = "in", dpi = 300)
+
+
 ################################################################################
 # Question 5
 # How many traffic accidents happen during night?
 ################################################################################
 
+traffic_by_night_hour <- traffic_data %>% 
+  filter(lubridate::year(accident_date) %in% 2017:2022) %>% 
+  group_by(astronomical_twilight_night) %>% 
+  summarize(n_accidents = n())
+
 ################################################################################
 # Question 6
 # How long is the average accident?
 ################################################################################
+
+duration_summary <- traffic_data %>% 
+  filter(lubridate::year(accident_date) %in% 2017:2022 & duration_of_accident < quantile(traffic_data$duration_of_accident, 0.999)) %>% 
+  summarise(min_duration = min(duration_of_accident, na.rm=TRUE),
+            q25_duration = quantile(duration_of_accident, 0.25),
+            median_duration = median(duration_of_accident),
+            mean_duration = mean(duration_of_accident),
+            q75_duration = quantile(duration_of_accident, 0.75),
+            max_duration = max(duration_of_accident))
+
+duration_summary_by_year <- traffic_data %>% 
+  filter(lubridate::year(accident_date) %in% 2017:2022 & duration_of_accident < quantile(traffic_data$duration_of_accident, 0.999)) %>% 
+  group_by(accident_year) %>% 
+  summarise(min_duration = min(duration_of_accident, na.rm=TRUE),
+            q25_duration = quantile(duration_of_accident, 0.25),
+            median_duration = median(duration_of_accident),
+            mean_duration = mean(duration_of_accident),
+            q75_duration = quantile(duration_of_accident, 0.75),
+            max_duration = max(duration_of_accident))
+  
+traffic_data %>% 
+  filter(lubridate::year(accident_date) %in% 2017:2022 & duration_of_accident < quantile(traffic_data$duration_of_accident, 0.95)) %>% 
+  ggplot() +
+    geom_boxplot(aes(y = duration_of_accident)) +
+    facet_wrap(~accident_year)
 
 ################################################################################
 # Question 7
@@ -311,6 +393,20 @@ ggsave("plots/daily_accidents.png", plot = daily_plots, width = 10, height = 10,
 # Question 8
 # How much distance is blocked by the average accident by severity?
 ################################################################################
+
+severity_summary <- traffic_data %>% 
+  filter(lubridate::year(accident_date) %in% 2017:2022 & duration_of_accident < quantile(traffic_data$duration_of_accident, 0.95)) %>% 
+  group_by(severity, accident_year) %>% 
+  summarise(severity_count = n(),
+            mean_duration = mean(duration_of_accident, na.rm=TRUE),
+            mean_blocked_distance = mean(distance_mi, na.rm=TRUE),
+            mean_hour = mean(accident_hour, na.rm=TRUE))
+
+severity_summary %>% 
+  mutate(accident_year = factor(accident_year)) %>% 
+  ggplot() +
+    geom_point(aes(x = severity, y = mean_duration, color = accident_year)) +
+    geom_line(aes(x = severity, y = mean_duration, color = accident_year))
 
 ################################################################################
 # Question 9
@@ -330,7 +426,7 @@ accident_video_gen(df_sf = traffic_hourly,
                    start_date = "2021-12-25", 
                    end_date = "2021-12-26", 
                    fps = 4, 
-                   res = 'hourly', geo_res = 'city',
+                   res = 'hourly', geo_res = 'city', color_col = 'accident_date',
                    bbox = spatial_objects$seattle_bbox, 
                    spatial_list = spatial_objects, 
                    output_location = "plots/hourly_accident_map.mp4")

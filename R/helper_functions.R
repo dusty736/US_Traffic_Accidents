@@ -148,7 +148,7 @@ consolidate_weather <- function(weather) {
 #'
 #' @examples
 accident_video_gen <- function(df_sf, start_date, end_date, fps, res, geo_res,
-                               bbox, spatial_list, output_location) {
+                               bbox, spatial_list, output_location, color_col) {
   
   # Filter for date
   df_sf <- df_sf %>% 
@@ -164,6 +164,11 @@ accident_video_gen <- function(df_sf, start_date, end_date, fps, res, geo_res,
     transition <- 'accident_date'
     label_text <- "accident_date"
   }
+  
+  # Set factor
+  df_sf$color_column <- df_sf %>% 
+    pull(!!sym(color_col)) %>% 
+    as.factor()
   
   if (geo_res == 'state') {
     t1_region <- spatial_list$states_of_interest
@@ -192,17 +197,18 @@ accident_video_gen <- function(df_sf, start_date, end_date, fps, res, geo_res,
     geom_sf(data = supp_roads, color = "black", linewidth=0.05) +
     geom_sf(data = water, fill = 'blue', linewidth=0.0001, alpha=0.1) +
     # Add accidents
-    geom_sf(size = 3, shape = 23, color = 'red', fill = 'orange', stroke = 1) +
+    geom_sf(aes(fill = color_column), size = 3, shape = 23, stroke = 1) +
     # Add dynamic label for time or date
     geom_text(aes(x = Inf, y = Inf, label = !!sym(label_text)), 
               hjust = 1.1, vjust = 1.1, color = 'black', size = 6) +
     # Transition
     gganimate::transition_time(!!sym(transition)) +
     gganimate::shadow_mark(past = TRUE, future = FALSE, alpha = 0.75, size = 1) +
-    gganimate::ease_aes('linear') +
+    gganimate::ease_aes('elastic-in-out') +
     # Limits
     xlim(bbox[1], bbox[3]) +
     ylim(bbox[2], bbox[4]) +
+    labs(fill = '') +
     theme(panel.border = element_rect(colour = "black", fill=NA),
           legend.background = element_blank(),
           legend.box.background = element_rect(colour = "black"))
