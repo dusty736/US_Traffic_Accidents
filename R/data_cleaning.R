@@ -184,6 +184,8 @@ holidays_df <- all_holidates %>%
   unnest(cols = date) %>%
   mutate(accident_date = as.Date(date))
 
+data.table::fwrite(holidays_df, "data/holidays.csv")
+
 traffic_data_full <- traffic_data %>% 
   # New or updated columns
   mutate(accident_hour_dec = paste0(lubridate::hour(start_time) + round(lubridate::minute(start_time) / 60,
